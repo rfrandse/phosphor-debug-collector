@@ -22,6 +22,8 @@ using namespace phosphor::logging;
 constexpr auto LOG_PATH = "/xyz/openbmc_project/logging";
 constexpr auto INTERNAL_FAILURE =
     "xyz.openbmc_project.Common.Error.InternalFailure";
+constexpr auto HOST_CHECKSTOP =
+    "org.open_power.Host.Boot.Error.Checkstop";
 using Message = std::string;
 using Attributes = sdbusplus::message::variant<Message>;
 using AttributeName = std::string;
@@ -114,9 +116,9 @@ void Watch::addCallback(sdbusplus::message::message& msg)
         return;
     }
 
-    if (data != INTERNAL_FAILURE)
+    if ( data != INTERNAL_FAILURE && data != HOST_CHECKSTOP)
     {
-        //Not a InternalFailure, skip
+        //Not a InternalFailure or host checkstop, skip
         return;
     }
 
@@ -132,7 +134,14 @@ void Watch::addCallback(sdbusplus::message::message& msg)
         phosphor::dump::elog::serialize(elogList);
 
         //Call internal create function to initiate dump
-        iMgr.IMgr::create(Type::InternalFailure, fullPaths);
+        if (data == HOST_CHECKSTOP)
+        {
+            iMgr.IMgr::create(Type::HostCheckstop, fullPaths);
+        }
+        else
+        {
+            iMgr.IMgr::create(Type::InternalFailure, fullPaths);
+        }
     }
     catch (QuotaExceeded& e)
     {
